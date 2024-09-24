@@ -1,0 +1,56 @@
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: {{ name }}
+  namespace: data-spark
+spec:
+  nodeSelector:
+    node-role.kubernetes.io/worker: worker
+    zone.service/layer: data
+  type: Python
+  pythonVersion: "3"
+  mode: cluster
+  image: {{ image }}
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets:
+    - registry-snapp
+  mainApplicationFile: {{ mainApplicationFile }}
+  sparkVersion: {{ sparkVersion }}
+  restartPolicy:
+    type: Never
+  volumes:
+    - name: spark-volume
+      hostPath:
+        path: "/tmp/spark-local-dir"
+  driver:
+    cores: {{ driver_cores }}
+    memory: {{ driver_memory }}
+    labels:
+      version: 2.4.0
+    serviceAccount: spark-operator-spark
+    volumeMounts:
+      - name: spark-volume
+        mountPath: /mnt/data
+    env:
+      {% for key, value in env_vars.items() %}
+      - name: {{ key }}
+        value: "{{ value }}"
+      {% endfor %}
+  executor:
+    cores: {{ executor_cores }}
+    memory: {{ executor_memory }}
+    instances: {{ executor_instance }}
+    volumeMounts:
+      - name: spark-volume
+        mountPath: /mnt/data
+    env:
+      {% for key, value in env_vars.items() %}
+      - name: {{ key }}
+        value: "{{ value }}"
+      {% endfor %}
+  sparkConf:
+    "spark.kubernetes.file.upload.path": "file:///mnt/data"
+    "spark.jars.packages": "{{ spark_jars }}"
+    "spark.driver.extraJavaOptions": "-Divy.cache.dir=/tmp/ivy-cache -Divy.home=/tmp/ivy-cache"
+    "spark.executor.extraJavaOptions": "-Divy.cache.dir=/tmp/ivy-cache -Divy.home=/tmp/ivy-cache"
+
